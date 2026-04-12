@@ -178,7 +178,8 @@ class WikiUpdater:
             # 既存ディレクトリを削除（クリーンな状態から開始）
             if os.path.exists(self.wiki_repo_path):
                 logger.info(f"既存のディレクトリを削除: {self.wiki_repo_path}")
-                subprocess.run(f'rmdir /s /q "{self.wiki_repo_path}"', shell=True, check=False)
+                import shutil
+                shutil.rmtree(self.wiki_repo_path, ignore_errors=True)
 
             # URLにトークンを組み込む（必要な場合）
             if wiki_token and "github.com" in wiki_repo_url:
