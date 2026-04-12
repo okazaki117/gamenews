@@ -1,17 +1,27 @@
 [
   {
-    "name": "IGN Games News",
-    "url": "https://feeds.ign.com/ign/games-news",
-    "category": "gaming"
+    "name": "Automaton",
+    "url": "https://automaton-media.com/feed/",
+    "category": "business"
   },
   {
-    "name": "GameSpot News",
-    "url": "https://www.gamespot.com/feeds/news/",
-    "category": "gaming"
+    "name": "gamebiz",
+    "url": "https://gamebiz.jp/?feed=rss2",
+    "category": "business"
   },
   {
-    "name": "Polygon Gaming",
-    "url": "https://www.polygon.com/rss/index.xml",
-    "category": "gaming"
+    "name": "GamesIndustry.biz",
+    "url": "https://www.gamesindustry.biz/feed",
+    "category": "business"
+  },
+  {
+    "name": "Game Developer",
+    "url": "https://www.gamedeveloper.com/rss.xml",
+    "category": "business"
+  },
+  {
+    "name": "IGN Japan",
+    "url": "https://jp.ign.com/feed.xml",
+    "category": "business"
   }
 ]
