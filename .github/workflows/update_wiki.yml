@@ -89,8 +89,8 @@ jobs:
           echo "Wiki URLを指定: $(echo $WIKI_REPO_URL | sed 's/\/\/.*@/\/\/***@/')"
         fi
         
-        # メインスクリプトを実行
-        python src/main.py \
+        # PYTHONPATHを指定してメインスクリプトを実行
+        PYTHONPATH=. python src/main.py \
           --config "$CONFIG_PATH" \
           --wiki-path "$WIKI_LOCAL_PATH" \
           $WIKI_URL_FLAG \
