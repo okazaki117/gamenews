@@ -76,9 +76,8 @@ class RSSParser:
         """
         now_jst = datetime.now(self.jst)
         time_diff = now_jst - published_time
-        # テスト環境の時計（2026年）と現実のRSS（通常2024年等）がズレているため、
-        # ここでは期間制限を大幅（約10年）に緩めて取得できるようにしておきます
-        return time_diff <= timedelta(days=3650)
+        # 最新記事のみを収集（週末の更新ストップを考慮して直近48時間以内の記事を対象とする）
+        return time_diff <= timedelta(hours=48)
 
     def _parse_article_date(self, entry) -> datetime:
         """
