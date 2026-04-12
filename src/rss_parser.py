@@ -20,6 +20,7 @@ class RSSParser:
         self.config_path = config_path
         self.feeds = self._load_feeds()
         self.jst = pytz.timezone('Asia/Tokyo')
+        self.max_articles_per_feed = 5
 
     def _load_feeds(self) -> List[Dict[str, Any]]:
         """設定ファイルからRSSフィード情報を読み込む"""
@@ -64,20 +65,17 @@ class RSSParser:
             print(f"HTMLテキスト抽出エラー: {e}")
             return html_content
 
-    def _is_within_24_hours(self, published_time: datetime) -> bool:
+    def _is_within_hours(self, published_time: datetime, hours: int) -> bool:
         """
-        記事の公開日時が直近24時間以内か判定する
+        記事の公開日時が指定時間内か判定する
 
         Args:
             published_time (datetime): 記事の公開日時
-
-        Returns:
-            bool: 直近24時間以内ならTrue
+            hours (int): 制限時間（時間）
         """
         now_jst = datetime.now(self.jst)
         time_diff = now_jst - published_time
-        # 最新記事のみを収集（週末の更新ストップを考慮して直近48時間以内の記事を対象とする）
-        return time_diff <= timedelta(hours=48)
+        return time_diff <= timedelta(hours=hours)
 
     def _parse_article_date(self, entry) -> datetime:
         """
@@ -138,16 +136,36 @@ class RSSParser:
                     continue
                 print(f"フィード '{feed_name}' から {len(entries)} 件の記事を取得しました")
 
+                # 1. 時間によるフィルタリング
+                target_entries = []
                 for entry in entries:
                     try:
-                        # 記事の公開日時を取得
-                        published_time = self._parse_article_date(entry)
-
-                        # 直近24時間以内の記事のみ処理
-                        if not self._is_within_24_hours(published_time):
+                        dt = self._parse_article_date(entry)
+                        if self._is_within_hours(dt, 24):
+                            target_entries.append((dt, entry))
+                    except Exception:
+                        continue
+                
+                # 2. 24時間以内が0件なら48時間にフォールバック拡張
+                if not target_entries:
+                    print(f"  直近24時間以内の記事がないため、48時間以内に範囲を拡張します")
+                    for entry in entries:
+                        try:
+                            dt = self._parse_article_date(entry)
+                            if self._is_within_hours(dt, 48):
+                                target_entries.append((dt, entry))
+                        except Exception:
                             continue
 
-                        # 記事情報を抽出
+                # 3. 最新順にソートし、最大取得件数でクリップする
+                target_entries.sort(key=lambda x: x[0], reverse=True)
+                target_entries = target_entries[:self.max_articles_per_feed]
+
+                for dt, entry in target_entries:
+                    try:
+                        # 記事情報の抽出
+                        published_time = dt
+
                         title = entry.get('title', 'タイトルなし')
                         article_url = entry.get('link', '')
                         description = entry.get('description', '')
