@@ -183,8 +183,8 @@ class WikiUpdater:
 
             # URLにトークンを組み込む（必要な場合）
             if wiki_token and "github.com" in wiki_repo_url:
-                # https://github.com/username/repo.wiki.git → https://token@github.com/username/repo.wiki.git
-                auth_url = wiki_repo_url.replace("https://", f"https://{wiki_token}@")
+                # https://github.com/username/repo.wiki.git → https://x-access-token:token@github.com/username/repo.wiki.git
+                auth_url = wiki_repo_url.replace("https://", f"https://x-access-token:{wiki_token}@")
                 clone_url = auth_url
             else:
                 clone_url = wiki_repo_url
