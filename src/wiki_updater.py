@@ -81,12 +81,13 @@ class WikiUpdater:
         
         return success1 and success2
 
-    def generate_markdown_content(self, summaries: List[str]) -> str:
+    def generate_markdown_content(self, summaries: List[str], daily_trend_summary: str = None) -> str:
         """
         要約データからMarkdownコンテンツを生成する
 
         Args:
             summaries (List[str]): 要約データのリスト
+            daily_trend_summary (str, optional): 全体トレンド要約テキスト
 
         Returns:
             str: 生成されたMarkdownコンテンツ
@@ -103,6 +104,16 @@ class WikiUpdater:
 - **取得日時**: {jst_date} (JST)
 - **要約記事数**: {len(summaries)}件
 - **生成方法**: RSSフィードから直近24時間の記事を取得し、AIで要約
+
+---
+
+"""
+
+        # 全体トレンド要約の挿入（存在する場合）
+        if daily_trend_summary:
+            markdown_content += f"""## 今日のゲーム業界トレンド
+
+{daily_trend_summary}
 
 ---
 
@@ -208,13 +219,14 @@ class WikiUpdater:
             logger.error(f"Wikiリポジトリクローンエラー: {e}")
             return False
 
-    def update_wiki(self, summaries: List[str], wiki_repo_url: str = None) -> bool:
+    def update_wiki(self, summaries: List[str], wiki_repo_url: str = None, daily_trend_summary: str = None) -> bool:
         """
         要約データをWikiリポジトリにプッシュする
 
         Args:
             summaries (List[str]): 要約データのリスト
             wiki_repo_url (str): WikiリポジトリURL（指定された場合のみクローン）
+            daily_trend_summary (str, optional): 全体トレンド要約テキスト
 
         Returns:
             bool: 成功したかどうか
@@ -243,7 +255,7 @@ class WikiUpdater:
 
             # 3. Markdownコンテンツ生成
             logger.info("Markdownコンテンツを生成します")
-            markdown_content = self.generate_markdown_content(summaries)
+            markdown_content = self.generate_markdown_content(summaries, daily_trend_summary)
 
             # 4. Markdownファイル作成
             logger.info("Markdownファイルを作成します")

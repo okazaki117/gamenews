@@ -115,17 +115,17 @@ class ArticleSummarizer:
 
     def summarize_article(self, article: Dict[str, Any]) -> Optional[str]:
         """
-        記事の本文を要約する
+        記事の本文を要約し、タイトルを日本語化する
 
         Args:
             article (Dict[str, Any]): 記事情報
-                - title: 記事タイトル
+                - title: 記事タイトル（英語または元の言語）
                 - plain_text: 記事本文（プレーンテキスト）
                 - url: 記事URL
                 - feed_name: フィード名
 
         Returns:
-            Optional[str]: 要約テキスト（失敗時はNone）
+            Optional[str]: 日本語化されたタイトルと要約を含むテキスト（失敗時はNone）
         """
         if not self.client:
             logger.error("APIクライアントが利用できないため要約をスキップします")
@@ -145,14 +145,20 @@ class ArticleSummarizer:
         # テキストが長すぎる場合は切り詰める
         truncated_text = self._truncate_text(plain_text)
 
-        # システムプロンプト（日本語）
-        system_prompt = """あなたはゲームビジネスニュースの専門アシスタントです。
-与えられた記事の重要なポイントを、以下の要件で日本語で要約してください：
+        # システムプロンプト（日本語） - タイトル日本語化と要約を指示
+        system_prompt = """あなたはプロのゲーム記事の翻訳・要約編集者です。
+以下の指示に従って、記事の要約を生成してください：
 
-1. 3〜5行程度の箇条書き形式でまとめる
-2. ビジネスや業界への影響に焦点を当てる
-3. 簡潔で分かりやすい日本語を使用する
-4. 主観的な意見は避け、事実に基づいた要点を抽出する"""
+1. 記事の元の表題（タイトル）を自然な日本語に翻訳し、出力の先頭に「翻訳タイトル: [日本語タイトル]」の形式で記述してください。
+2. 翻訳タイトルの後に、記事の要点を3行程度の箇条書きでまとめてください。
+3. ビジネスや業界への影響に焦点を当て、簡潔で分かりやすい日本語を使用してください。
+4. 主観的な意見は避け、事実に基づいた要点を抽出してください。
+
+出力フォーマット例：
+翻訳タイトル: [日本語に翻訳されたタイトル]
+- 要点1
+- 要点2
+- 要点3"""
 
         # ユーザープロンプト（記事情報を含む）
         user_prompt = f"""以下のゲームニュース記事を要約してください：
@@ -164,7 +170,7 @@ class ArticleSummarizer:
 【記事本文】
 {truncated_text}
 
-上記の記事の重要なポイントを、ゲームビジネスや業界への影響に焦点を当てて、3〜5行程度の箇条書きで要約してください。"""
+上記の記事のタイトルを日本語に翻訳し、記事の要点を3行程度の箇条書きで要約してください。"""
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -175,12 +181,13 @@ class ArticleSummarizer:
         summary = self._call_api_with_retry(messages)
 
         if summary:
-            # 要約にメタ情報を追加
+            # AIの出力をそのまま使用（翻訳タイトルと要約を含む）
+            # メタ情報と組み合わせて最終出力を生成
             enhanced_summary = f"""## {title}
 
 **出典**: {feed_name} | [元記事]({url})
 
-### 要点
+### 日本語要約
 {summary}
 
 ---
@@ -224,6 +231,59 @@ class ArticleSummarizer:
 
         logger.info(f"要約完了: {successful}件成功, {failed}件失敗")
         return summaries
+
+    def summarize_daily_trends(self, summaries: list) -> Optional[str]:
+        """
+        複数の記事要約から全体トレンド要約を生成する
+
+        Args:
+            summaries (list): 個別記事の要約リスト
+
+        Returns:
+            Optional[str]: 全体トレンド要約テキスト（失敗時はNone）
+        """
+        if not self.client:
+            logger.error("APIクライアントが利用できないためトレンド要約をスキップします")
+            return None
+
+        if not summaries:
+            logger.warning("要約がありません。トレンド要約をスキップします")
+            return None
+
+        logger.info(f"{len(summaries)}件の要約から全体トレンド要約を生成します")
+
+        # 全要約を結合（個別要約の内容を含む）
+        combined_text = "\n\n".join(summaries)
+        
+        # テキストが長すぎる場合は切り詰める（トークン数制限に注意）
+        truncated_text = self._truncate_text(combined_text, max_tokens=8000)
+
+        # システムプロンプト（日本語）
+        system_prompt = """あなたはゲーム業界のアナリストです。
+複数のゲームニュース要約から、今日のゲーム業界全体のトレンドや重要な動きを端的に要約してください。"""
+
+        # ユーザープロンプト
+        user_prompt = f"""以下のゲームニュース要約は、今日取得した複数の記事をAIが要約したものです。
+
+【今日のゲームニュース要約一覧】
+{truncated_text}
+
+これら今日のゲームニュースの全ての内容から、注目のトレンドや重要な動きを3行〜4行程度で端的に要約してください。業界全体の動向やビジネスへの影響に焦点を当ててください。"""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        # API呼び出し（リトライ付き）
+        trend_summary = self._call_api_with_retry(messages)
+
+        if trend_summary:
+            logger.info(f"全体トレンド要約を生成しました: {len(trend_summary)}文字")
+            return trend_summary
+        else:
+            logger.error("全体トレンド要約の生成に失敗しました")
+            return None
 
 
 def main():

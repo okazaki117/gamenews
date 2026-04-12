@@ -125,13 +125,14 @@ class GameNewsPipeline:
             logger.error(f"要約生成中にエラーが発生しました: {e}")
             return []
 
-    def update_wiki_repository(self, summaries: List[str], wiki_repo_url: str = None) -> bool:
+    def update_wiki_repository(self, summaries: List[str], wiki_repo_url: str = None, daily_trend_summary: str = None) -> bool:
         """
         Wikiリポジトリを更新する
 
         Args:
             summaries (List[str]): 要約結果のリスト
             wiki_repo_url (str): WikiリポジトリのURL（オプション）
+            daily_trend_summary (str, optional): 全体トレンド要約テキスト
 
         Returns:
             bool: 成功したかどうか
@@ -139,7 +140,7 @@ class GameNewsPipeline:
         logger.info("Wikiリポジトリを更新中...")
         
         try:
-            success = self.wiki_updater.update_wiki(summaries, wiki_repo_url)
+            success = self.wiki_updater.update_wiki(summaries, wiki_repo_url, daily_trend_summary)
             
             if success:
                 logger.info("Wikiリポジトリの更新に成功しました")
@@ -188,8 +189,21 @@ class GameNewsPipeline:
             logger.warning("要約を生成できませんでした。処理を終了します。")
             return False
         
-        # 4. Wikiリポジトリの更新
-        success = self.update_wiki_repository(summaries, wiki_repo_url)
+        # 4. 全体トレンド要約の生成
+        daily_trend_summary = None
+        try:
+            logger.info("全体トレンド要約を生成中...")
+            daily_trend_summary = self.summarizer.summarize_daily_trends(summaries)
+            if daily_trend_summary:
+                logger.info("全体トレンド要約を生成しました")
+            else:
+                logger.warning("全体トレンド要約の生成に失敗しましたが、処理を継続します")
+        except Exception as e:
+            logger.error(f"全体トレンド要約生成中にエラーが発生しました: {e}")
+            # 全体トレンド要約の失敗は致命的ではないため、処理を継続
+        
+        # 5. Wikiリポジトリの更新
+        success = self.update_wiki_repository(summaries, wiki_repo_url, daily_trend_summary)
         
         logger.info("=" * 60)
         logger.info("ゲームニュース自動要約システムを完了しました")
