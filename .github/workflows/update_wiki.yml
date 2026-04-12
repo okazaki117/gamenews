@@ -1,0 +1,118 @@
+name: Daily Game News Update
+
+on:
+  # スケジュール実行: 毎日午前7時50分（日本時間）に実行
+  # UTC換算: JST 07:50 = UTC 22:50 (前日)
+  schedule:
+    - cron: '50 22 * * *'  # UTC 22:50 (毎日前日22:50)
+  
+  # 手動実行も可能
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'テストモードで実行（実際のAPI呼び出しをスキップ）'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  update-game-news-wiki:
+    runs-on: ubuntu-latest
+    
+    env:
+      # 環境変数: GitHub Secretsから取得
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # 設定
+      WIKI_REPO_URL: ${{ secrets.WIKI_REPO_URL }}
+      CONFIG_PATH: 'config/feeds.json'
+      WIKI_LOCAL_PATH: 'wiki'
+      
+    steps:
+    - name: リポジトリをチェックアウト
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # 全ての履歴を取得（Git操作のために必要）
+    
+    - name: Python環境をセットアップ
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'  # pipキャッシュを有効化
+    
+    - name: 依存パッケージをインストール
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Wikiリポジトリをクローン
+      if: env.WIKI_REPO_URL != ''
+      run: |
+        echo "Wikiリポジトリをクローンします: $WIKI_REPO_URL"
+        
+        # トークンをURLに組み込む
+        if [[ "$WIKI_REPO_URL" == https://github.com/* ]]; then
+          AUTH_URL="${WIKI_REPO_URL/https:\/\//https:\/\/$GITHUB_TOKEN@}"
+          echo "認証付きURLを使用: $(echo $AUTH_URL | sed 's/$GITHUB_TOKEN/***/')"
+          git clone "$AUTH_URL" "$WIKI_LOCAL_PATH"
+        else
+          git clone "$WIKI_REPO_URL" "$WIKI_LOCAL_PATH"
+        fi
+        
+        # クローン結果を確認
+        if [ -d "$WIKI_LOCAL_PATH" ]; then
+          echo "✓ Wikiリポジトリのクローンに成功"
+          ls -la "$WIKI_LOCAL_PATH"
+        else
+          echo "✗ Wikiリポジトリのクローンに失敗"
+          exit 1
+        fi
+    
+    - name: システムの実行
+      run: |
+        echo "ゲームニュース自動要約システムを開始します..."
+        echo "実行日時: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+        echo "----------------------------------------"
+        
+        # 実行モードの判定
+        TEST_MODE_FLAG=""
+        if [ "${{ inputs.test_mode }}" == "true" ]; then
+          TEST_MODE_FLAG="--test-mode"
+          echo "テストモードで実行します"
+        fi
+        
+        # Wiki URLの設定
+        WIKI_URL_FLAG=""
+        if [ -n "$WIKI_REPO_URL" ]; then
+          WIKI_URL_FLAG="--wiki-url $WIKI_REPO_URL"
+          echo "Wiki URLを指定: $(echo $WIKI_REPO_URL | sed 's/\/\/.*@/\/\/***@/')"
+        fi
+        
+        # メインスクリプトを実行
+        python src/main.py \
+          --config "$CONFIG_PATH" \
+          --wiki-path "$WIKI_LOCAL_PATH" \
+          $WIKI_URL_FLAG \
+          $TEST_MODE_FLAG
+        
+        EXIT_CODE=$?
+        echo "----------------------------------------"
+        echo "システム終了コード: $EXIT_CODE"
+        
+        if [ $EXIT_CODE -eq 0 ]; then
+          echo "✓ システムは正常に完了しました"
+        else
+          echo "✗ システムはエラーで終了しました"
+          exit $EXIT_CODE
+        fi
+    
+
+    - name: 成果物をアップロード（デバッグ用）
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: logs-${{ github.run_id }}
+        path: |
+          wiki/
+        retention-days: 7

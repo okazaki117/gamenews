@@ -1,0 +1,17 @@
+[
+  {
+    "name": "IGN Games News",
+    "url": "https://feeds.ign.com/ign/games-news",
+    "category": "gaming"
+  },
+  {
+    "name": "GameSpot News",
+    "url": "https://www.gamespot.com/feeds/news/",
+    "category": "gaming"
+  },
+  {
+    "name": "Polygon Gaming",
+    "url": "https://www.polygon.com/rss/index.xml",
+    "category": "gaming"
+  }
+]
