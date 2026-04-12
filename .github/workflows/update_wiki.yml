@@ -90,13 +90,14 @@ jobs:
         fi
         
         # PYTHONPATHを指定してメインスクリプトを実行
-        PYTHONPATH=. python src/main.py \
+        set +e
+        PYTHONUNBUFFERED=1 PYTHONPATH=. python src/main.py \
           --config "$CONFIG_PATH" \
           --wiki-path "$WIKI_LOCAL_PATH" \
           $WIKI_URL_FLAG \
           $TEST_MODE_FLAG
-        
         EXIT_CODE=$?
+        set -e
         echo "----------------------------------------"
         echo "システム終了コード: $EXIT_CODE"
         
