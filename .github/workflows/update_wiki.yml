@@ -3,7 +3,7 @@ name: Daily Game News Update
 on:
   # スケジュール実行: 毎日午前7時50分（日本時間）に実行
   # UTC換算: JST 07:50 = UTC 22:50 (前日) 
-   schedule:
+ #  schedule:
  #   - cron: '50 22 * * *'  # UTC 22:50 (毎日前日22:50)
   
   # 手動実行も可能
